@@ -1,5 +1,8 @@
-FROM node:16.18
+FROM node:18
 
-ADD https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh /wait-for-it.sh
+RUN curl https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh --output /wait-for-it.sh
 
 RUN chmod +x /wait-for-it.sh
+
+WORKDIR /usr/src/frontend
+RUN yarn install

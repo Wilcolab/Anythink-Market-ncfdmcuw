@@ -1,32 +1,32 @@
-version: "3.8"
 services:
-  anythink-backend-rails:
+  anythink-backend-node:
     build: ./backend
-    container_name: anythink-backend-rails
-    command: sh -c "cd backend && bundle install && /wait-for-it.sh postgres-rails:5432 -q -t 60 && ./start_rails.sh"
+    container_name: anythink-backend-node
+    command: sh -c "cd backend && npm install && npm run build && npm run dev"
+
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN=${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}
+      - ENGINE_WILCO_AI_URL=${ENGINE_WILCO_AI_URL}
 
     working_dir: /usr/src
     volumes:
       - ./:/usr/src/
+      - /usr/src/backend/node_modules
     ports:
       - "3000:3000"
-    environment:
-      - RAILS_ENV=development
-      - PORT=3000
-      - DATABASE_URL=postgres://user:@postgres-rails:5432
-      - GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN=${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}
-    depends_on:
-      - "postgres-rails"
 
   anythink-frontend-react:
     build: ./frontend
     container_name: anythink-frontend-react
-    command: sh -c "cd frontend && yarn install && /wait-for-it.sh anythink-backend-rails:3000 -t 120 --strict -- curl --head -X GET --retry 30 --retry-connrefused --retry-delay 1 anythink-backend-rails:3000/api/ping  && yarn start"
+    command: sh -c "cd frontend && /wait-for-it.sh anythink-backend-node:3000 -t 120 --strict -- curl --head -X GET --retry 30 --retry-connrefused --retry-delay 1 anythink-backend-node:3000/api/ping && npm install && npm run dev"
     environment:
       - NODE_ENV=development
       - PORT=3001
       - REACT_APP_BACKEND_URL=${CODESPACE_BACKEND_URL:-http://localhost:3000}
       - WDS_SOCKET_PORT=${CODESPACE_WDS_SOCKET_PORT:-3001}
+
     working_dir: /usr/src
     volumes:
       - ./:/usr/src/
@@ -34,19 +34,15 @@ services:
     ports:
       - "3001:3001"
     depends_on:
-      - "anythink-backend-rails"
+      - "anythink-backend-node"
 
-  postgres-rails:
-    container_name: postgres-rails
-    restart: on-failure
-    image: postgres
-    logging:
-      driver: none
+  anythink-ack:
+    image: public.ecr.aws/v0a2l7y2/wilco/anythink-ack:latest
+    container_name: anythink-ack
     environment:
-      POSTGRES_HOST_AUTH_METHOD: trust
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-    volumes:
-      - ~/posgres/data:/data/db
-    ports:
-      - '5433:5432'
+      - GITHUB_TOKEN=$GITHUB_TOKEN
+      - CODESPACE_NAME=$CODESPACE_NAME
+      - APP_NAME=MongoDB RAG Chat
+    depends_on:
+      - "anythink-frontend-react"
+
